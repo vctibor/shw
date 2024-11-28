@@ -1,5 +1,5 @@
 use std::{env, fs};
-use std::fs::File;
+use std::fs::{DirEntry, File};
 use std::path::Path;
 use std::io::Read;
 
@@ -10,11 +10,20 @@ fn ls(path: Option<&Path>) {
         &env::current_dir().unwrap()
     };
 
-    let paths = fs::read_dir(path).unwrap();
-    paths.for_each(|entry| {
-        let path_display = entry.unwrap().path();
-        println!("{}", path_display.display());
-    })
+    let entries = fs::read_dir(path).unwrap();
+
+    let mut entries: Vec<DirEntry> = entries
+        .map(|entry| entry.unwrap())
+        .collect();
+
+    entries.sort_by(|a, b| a.path().cmp(&b.path()));
+
+    for entry in entries {
+        let filename= entry.file_name().into_string().unwrap();
+
+        println!("{}", filename);
+    }
+
 }
 
 fn cat(path: &Path) {
