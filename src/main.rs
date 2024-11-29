@@ -36,38 +36,58 @@ fn format_size(size: u64) -> String {
     }
 }
 
+fn print_entry(entry: &DirEntry, args: &Args) {
+    let filename= entry.file_name().into_string().unwrap();
+
+    if !args.all && filename.starts_with(".") {
+        return;
+    }
+
+    if args.stats {
+        let metadata = entry.metadata().unwrap();
+        let len = format_size(metadata.len());
+
+        //let modified = metadata.modified().unwrap();
+        //let permissions = metadata.permissions().
+
+        println!("{} {}", len, filename);
+    } else {
+        println!("{}", filename);
+    }
+}
+
+// TODO: Directory size by subentries, not inode size
 fn ls(path: &Path, args: &Args) {
     let entries = fs::read_dir(path).unwrap();
 
-    let mut entries: Vec<DirEntry> = entries
+    let mut directories = Vec::new();
+    let mut files = Vec::new();
+
+    entries
         .map(|entry| entry.unwrap())
-        .collect();
+        .for_each(|entry| {
+            if entry.metadata().unwrap().is_dir() {
+                directories.push(entry);
+            } else {
+                files.push(entry);
+            }
+        });
 
-    entries.sort_by(|a, b| a.path().cmp(&b.path()));
+    directories.sort_by(|a, b| a.path().cmp(&b.path()));
+    files.sort_by(|a, b| a.path().cmp(&b.path()));
 
-    for entry in entries {
-        let filename= entry.file_name().into_string().unwrap();
 
-        if !args.all && filename.starts_with(".") {
-            continue;
-        }
-
-        if args.stats {
-            let metadata = entry.metadata().unwrap();
-            let len = format_size(metadata.len());
-
-            //let modified = metadata.modified().unwrap();
-            //let permissions = metadata.permissions().
-
-            println!("{} {}", len, filename);
-        } else {
-            println!("{}", filename);
-        }
+    for dir in directories {
+        print_entry(&dir, args)
     }
 
+    for file in files {
+        print_entry(&file, args)
+    }
 }
 
-fn cat(path: &Path, args: &Args) {
+// TODO: Syntax coloring
+fn cat(path: &Path, _args: &Args) {
     let mut file = File::open(path).unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
