@@ -66,8 +66,8 @@ fn print_entry(entry: &DirEntry, args: &Args) -> Result<()> {
         let metadata = entry.metadata()?;
         let len = format_size(metadata.len());
 
-        //let modified = metadata.modified().unwrap();
-        //let permissions = metadata.permissions().
+        let _modified = metadata.modified()?;
+        let _permissions = metadata.permissions();
 
         println!("{} {}", len, filename);
     } else {
@@ -79,24 +79,20 @@ fn print_entry(entry: &DirEntry, args: &Args) -> Result<()> {
 
 // TODO: Directory size by subentries, not inode size
 fn ls(path: &Path, args: &Args) -> Result<()> {
-    let entries = fs::read_dir(path)?;
-
     let mut directories = Vec::new();
     let mut files = Vec::new();
 
-    entries
-        .map(|entry| entry.unwrap())
-        .for_each(|entry| {
-            if entry.metadata().unwrap().is_dir() {
-                directories.push(entry);
-            } else {
-                files.push(entry);
-            }
-        });
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        if entry.metadata()?.is_dir() {
+            directories.push(entry);
+        } else {
+            files.push(entry);
+        }
+    }
 
     directories.sort_by(|a, b| a.path().cmp(&b.path()));
     files.sort_by(|a, b| a.path().cmp(&b.path()));
-
 
     for dir in directories {
         let _ = print_entry(&dir, args);
