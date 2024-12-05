@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.21", features = ["derive"] }
 derive_more = { version = "1.0.0", features = ["from", "display"] }
+owo-colors = "4.1.0"

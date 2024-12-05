@@ -6,6 +6,7 @@ use std::path::Path;
 use std::io::Read;
 use derive_more::From;
 use clap::Parser;
+use owo_colors::OwoColorize;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -55,23 +56,29 @@ fn format_size(size: u64) -> String {
     }
 }
 
-fn print_entry(entry: &DirEntry, args: &Args) -> Result<()> {
+fn print_entry(entry: &DirEntry, args: &Args, dir: bool) -> Result<()> {
     let filename= entry.file_name().into_string()?;
 
     if !args.all && filename.starts_with(".") {
         return Ok(());
     }
 
-    if args.stats {
+    let output = if args.stats {
         let metadata = entry.metadata()?;
         let len = format_size(metadata.len());
 
         let _modified = metadata.modified()?;
         let _permissions = metadata.permissions();
 
-        println!("{} {}", len, filename);
+        format!("{} {}", len, filename)
     } else {
-        println!("{}", filename);
+        filename
+    };
+
+    if dir {
+        println!("{}", output.blue());
+    } else {
+        println!("{}", output);
     }
 
     Ok(())
@@ -95,11 +102,11 @@ fn ls(path: &Path, args: &Args) -> Result<()> {
     files.sort_by(|a, b| a.path().cmp(&b.path()));
 
     for dir in directories {
-        let _ = print_entry(&dir, args);
+        let _ = print_entry(&dir, args, true);
     }
 
     for file in files {
-        let _ = print_entry(&file, args);
+        let _ = print_entry(&file, args, false);
     }
 
     Ok(())
