@@ -1,9 +1,10 @@
+use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::{DirEntry, File};
 use std::path::Path;
 use std::io::Read;
-
+use derive_more::From;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -22,29 +23,47 @@ struct Args {
     path: String,
 }
 
+type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, From)]
+enum Error {
+    #[from]
+    Other {
+        message: String
+    },
+
+    #[from]
+    Io(std::io::Error),
+
+    #[from]
+    OsString {
+        message: OsString
+    },
+}
+
 fn format_size(size: u64) -> String {
     if size < 1024 {
-        format!("{}B", size)
+        format!("{} B", size)
     } else if size < 1024 * 1024 {
-        format!("{}KB", size / 1024)
+        format!("{} KiB", size / 1024)
     } else if size < 1024 * 1024 * 1024 {
-        format!("{}MB", size / 1024 / 1024)
+        format!("{} MiB", size / 1024 / 1024)
     } else if size < 1024 * 1024 * 1024 * 1024 {
-        format!("{}GB", size / 1024 * 1024 * 1024)
+        format!("{} GiB", size / 1024 * 1024 * 1024)
     } else {
-        format!("{}TB", size / 1024 * 1024 * 1024 * 1024)
+        format!("{} TiB", size / 1024 * 1024 * 1024 * 1024)
     }
 }
 
-fn print_entry(entry: &DirEntry, args: &Args) {
-    let filename= entry.file_name().into_string().unwrap();
+fn print_entry(entry: &DirEntry, args: &Args) -> Result<()> {
+    let filename= entry.file_name().into_string()?;
 
     if !args.all && filename.starts_with(".") {
-        return;
+        return Ok(());
     }
 
     if args.stats {
-        let metadata = entry.metadata().unwrap();
+        let metadata = entry.metadata()?;
         let len = format_size(metadata.len());
 
         //let modified = metadata.modified().unwrap();
@@ -54,11 +73,13 @@ fn print_entry(entry: &DirEntry, args: &Args) {
     } else {
         println!("{}", filename);
     }
+
+    Ok(())
 }
 
 // TODO: Directory size by subentries, not inode size
-fn ls(path: &Path, args: &Args) {
-    let entries = fs::read_dir(path).unwrap();
+fn ls(path: &Path, args: &Args) -> Result<()> {
+    let entries = fs::read_dir(path)?;
 
     let mut directories = Vec::new();
     let mut files = Vec::new();
@@ -78,28 +99,38 @@ fn ls(path: &Path, args: &Args) {
 
 
     for dir in directories {
-        print_entry(&dir, args)
+        let _ = print_entry(&dir, args);
     }
 
     for file in files {
-        print_entry(&file, args)
+        let _ = print_entry(&file, args);
     }
+
+    Ok(())
 }
 
 // TODO: Syntax coloring
-fn cat(path: &Path, _args: &Args) {
-    let mut file = File::open(path).unwrap();
+fn cat(path: &Path, _args: &Args) -> Result<()> {
+    let mut file = File::open(path)?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
+    file.read_to_string(&mut contents)?;
+
     println!("{}", contents);
+
+    Ok(())
 }
 
 fn main() {
     let args = Args::parse();
     let path = Path::new(&args.path);
-    if path.is_dir() {
-        ls(path, &args);
+
+    let res = if path.is_dir() {
+        ls(path, &args)
     } else {
-        cat(path, &args);
+        cat(path, &args)
+    };
+
+    if let Err(e) = res {
+        println!("Error: {:?}", e);
     }
 }
